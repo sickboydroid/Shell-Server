@@ -1,3 +1,4 @@
+#!/bin/python3
 import sys, os, shutil, pathlib, subprocess as proc
 from os import path
 from subprocess import run, PIPE
@@ -5,12 +6,16 @@ from tempfile import mktemp
 from threading import Thread
 
 # constants
+SERVER_DIR = path.join(str(pathlib.Path.home()), '.server')
+BACKUP_DIR = path.join(SERVER_DIR, '.backup')
 
-UPLOAD_REPO_URL = "git@github.com:game-of-coding/termux-server.git"
+UPLOAD_REPO_URL = 'git@github.com:game-of-coding/termux-server.git'
 DOWNLOAD_REPO_URL = 'git@github.com:game-of-coding/cloudshell-server.git'
+# UPLOAD_REPO_URL = 'git@github.com:game-of-coding/cloudshell-server.git'
+# DOWNLOAD_REPO_URL = 'git@github.com:game-of-coding/termux-server.git'
 
-UPLOAD_REPO_DIR = path.join(str(pathlib.Path.home()), '.server', 'upload_server')
-DOWNLOAD_REPO_DIR = path.join(str(pathlib.Path.home()), '.server', 'download_server')
+UPLOAD_REPO_DIR = path.join(SERVER_DIR, 'upload_server')
+DOWNLOAD_REPO_DIR = path.join(SERVER_DIR, 'download_server')
 
 class Colors:
     OKBLUE = '\033[94m'
@@ -118,7 +123,7 @@ def upload_files():
             return
 
     # Build command to copy all files to server directory
-    command = 'cp -r'
+    command = f'mv {UPLOAD_REPO_DIR}/* {BACKUP_DIR} &&  cp -r'
     for item in files:
         command += ' ' + item
     command += f' {UPLOAD_REPO_DIR}'
@@ -163,6 +168,25 @@ def clone_repo(repo_url, dest_dir):
         return False
     print('Done')
     return True
+
+def do_initial_setup():
+    if not path.exists(SERVER_DIR):
+        os.mkdir(SERVER_DIR)
+    if not path.exists(BACKUP_DIR):
+        os.mkdir(BACKUP_DIR)
+
+def reset_server():
+    choice = str(input('Do you really want to reset upload server? [Y/n]: ')).lower()
+    if choice == 'y' or choice == 'yes':
+        command = 'rm -rf {UPLOAD_REPO_DIR} {DOWNLOAD_REPO_DIR}'
+        output = CmdLine().cmd(command)
+        if output.returncode != 0:
+            PrintUtils.printRed('Error: Failed to delete server directories')
+        else:
+            PrintUtils.printGreen('Successfully deleted directories...')
+            PrintUtils.printBold('NOTE: Please delete \'TERMUX-SERVER\' and \'CLOUDSHELL-SERVER\' repos on github and then recreate them...')
+    else:
+        print('Aborted!')
    
 def clone_repos():
     has_cloned_any_repo = False
@@ -185,6 +209,7 @@ def clone_repos():
     return True
 
 def main():
+    do_initial_setup()
     if not clone_repos():
         return
 
@@ -203,6 +228,9 @@ def main():
     elif args[0] == 'u':
         print('*'*11, 'Upload', '*'*11)
         upload_files()
+    elif args[0] == 'reset':
+        print('*'*8, 'Reset Server', '*'*8)
+        reset_server()
     elif args[0] == 'h':
         print('*'*12, 'Help', '*'*12)
         print_help()
